@@ -1,0 +1,802 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="theme-color" content="#0F172A" />
+  <title>DropFind – Produktfinder</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+  <style>
+    /* ── Reset & Base ── */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --bg:       #0F172A;
+      --surface:  #1E293B;
+      --surface2: #263348;
+      --border:   #334155;
+      --accent:   #0EA5E9;
+      --accent2:  #6366F1;
+      --success:  #22C55E;
+      --warning:  #F59E0B;
+      --danger:   #EF4444;
+      --text:     #F1F5F9;
+      --muted:    #94A3B8;
+      --radius:   14px;
+      --safe-bottom: env(safe-area-inset-bottom, 0px);
+      --safe-top:    env(safe-area-inset-top, 0px);
+    }
+    html, body {
+      height: 100%; font-family: 'Inter', system-ui, sans-serif;
+      background: var(--bg); color: var(--text);
+      overflow: hidden; -webkit-font-smoothing: antialiased;
+    }
+
+    /* ── App Shell ── */
+    #app { display: flex; flex-direction: column; height: 100%; }
+    #header {
+      background: linear-gradient(135deg, #0F172A 0%, #1a1f35 100%);
+      border-bottom: 1px solid var(--border);
+      padding: calc(var(--safe-top) + 12px) 20px 12px;
+      display: flex; align-items: center; gap: 12px;
+      flex-shrink: 0; z-index: 10;
+    }
+    .logo { width: 36px; height: 36px; background: linear-gradient(135deg, var(--accent), var(--accent2)); border-radius: 10px; display: flex; align-items: center; justify-content: center; font-size: 18px; flex-shrink: 0; }
+    .header-text h1 { font-size: 18px; font-weight: 800; line-height: 1; background: linear-gradient(90deg, var(--accent), var(--accent2)); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+    .header-text p { font-size: 11px; color: var(--muted); margin-top: 2px; }
+
+    /* ── Pages ── */
+    #content { flex: 1; overflow-y: auto; overflow-x: hidden; -webkit-overflow-scrolling: touch; }
+    .page { display: none; padding: 16px 16px calc(80px + var(--safe-bottom)); min-height: 100%; }
+    .page.active { display: block; }
+
+    /* ── Bottom Nav ── */
+    #nav {
+      display: flex; background: var(--surface); border-top: 1px solid var(--border);
+      padding: 8px 4px calc(8px + var(--safe-bottom));
+      flex-shrink: 0; z-index: 10;
+    }
+    .nav-btn {
+      flex: 1; display: flex; flex-direction: column; align-items: center; gap: 3px;
+      padding: 4px 2px; background: none; border: none; color: var(--muted);
+      cursor: pointer; transition: color .2s; -webkit-tap-highlight-color: transparent;
+      font-size: 10px; font-weight: 500; font-family: inherit;
+    }
+    .nav-btn svg { width: 22px; height: 22px; }
+    .nav-btn.active { color: var(--accent); }
+    .nav-btn .nav-label { font-size: 10px; }
+
+    /* ── Cards ── */
+    .card {
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: var(--radius); padding: 16px; margin-bottom: 12px;
+    }
+    .card-sm { padding: 12px; }
+
+    /* ── Buttons ── */
+    .btn {
+      display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+      padding: 12px 20px; border-radius: 10px; font-weight: 600; font-size: 14px;
+      border: none; cursor: pointer; font-family: inherit; transition: opacity .2s, transform .1s;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .btn:active { transform: scale(0.97); }
+    .btn-primary { background: linear-gradient(135deg, var(--accent), var(--accent2)); color: #fff; }
+    .btn-outline { background: transparent; border: 1px solid var(--border); color: var(--text); }
+    .btn-success { background: var(--success); color: #fff; }
+    .btn-full { width: 100%; }
+    .btn:disabled { opacity: 0.5; pointer-events: none; }
+
+    /* ── Inputs ── */
+    .input-wrap { position: relative; margin-bottom: 12px; }
+    .input {
+      width: 100%; background: var(--surface2); border: 1px solid var(--border);
+      border-radius: 10px; padding: 12px 16px; color: var(--text);
+      font-size: 15px; font-family: inherit; outline: none;
+      -webkit-appearance: none; transition: border-color .2s;
+    }
+    .input:focus { border-color: var(--accent); }
+    .input::placeholder { color: var(--muted); }
+    select.input { cursor: pointer; }
+
+    /* ── Badge / Tag ── */
+    .tag {
+      display: inline-block; padding: 3px 8px; border-radius: 6px;
+      font-size: 11px; font-weight: 600;
+    }
+    .tag-blue { background: rgba(14,165,233,.15); color: var(--accent); }
+    .tag-purple { background: rgba(99,102,241,.15); color: #818CF8; }
+    .tag-green { background: rgba(34,197,94,.15); color: var(--success); }
+    .tag-yellow { background: rgba(245,158,11,.15); color: var(--warning); }
+    .tag-red { background: rgba(239,68,68,.15); color: var(--danger); }
+
+    /* ── Trending Page ── */
+    .section-title { font-size: 13px; font-weight: 700; color: var(--muted); text-transform: uppercase; letter-spacing: .05em; margin-bottom: 12px; }
+    .category-scroll { display: flex; gap: 8px; overflow-x: auto; padding-bottom: 8px; margin-bottom: 16px; scrollbar-width: none; }
+    .category-scroll::-webkit-scrollbar { display: none; }
+    .cat-btn {
+      flex-shrink: 0; padding: 6px 14px; border-radius: 20px; font-size: 13px; font-weight: 500;
+      border: 1px solid var(--border); background: var(--surface2); color: var(--muted);
+      cursor: pointer; font-family: inherit; transition: all .2s; -webkit-tap-highlight-color: transparent;
+    }
+    .cat-btn.active { background: var(--accent); border-color: var(--accent); color: #fff; }
+
+    .product-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+    .product-card {
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: var(--radius); padding: 14px; cursor: pointer;
+      transition: border-color .2s, transform .1s; -webkit-tap-highlight-color: transparent;
+    }
+    .product-card:active { transform: scale(0.97); }
+    .product-card:hover { border-color: var(--accent); }
+    .product-emoji { font-size: 28px; margin-bottom: 8px; }
+    .product-name { font-size: 13px; font-weight: 600; line-height: 1.3; margin-bottom: 6px; }
+    .product-price { font-size: 12px; color: var(--muted); margin-bottom: 8px; }
+    .trend-bar-wrap { background: var(--surface2); border-radius: 4px; height: 4px; overflow: hidden; }
+    .trend-bar { height: 100%; border-radius: 4px; background: linear-gradient(90deg, var(--accent), var(--accent2)); transition: width .6s ease; }
+    .trend-score { font-size: 11px; color: var(--accent); font-weight: 700; margin-top: 4px; }
+    .trend-direction { font-size: 11px; }
+    .trend-up { color: var(--success); }
+    .trend-stable { color: var(--warning); }
+    .trend-down { color: var(--danger); }
+
+    /* ── Search Page ── */
+    .search-hero { text-align: center; padding: 20px 0 24px; }
+    .search-hero h2 { font-size: 22px; font-weight: 800; margin-bottom: 6px; }
+    .search-hero p { color: var(--muted); font-size: 14px; }
+    .search-box { position: relative; }
+    .search-box .input { padding-right: 50px; font-size: 16px; }
+    .search-submit {
+      position: absolute; right: 6px; top: 50%; transform: translateY(-50%);
+      background: linear-gradient(135deg, var(--accent), var(--accent2));
+      border: none; border-radius: 8px; padding: 8px; cursor: pointer;
+      display: flex; align-items: center; justify-content: center;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .search-submit svg { width: 18px; height: 18px; fill: none; stroke: #fff; stroke-width: 2; }
+
+    /* ── Loading Spinner ── */
+    .loader-wrap { text-align: center; padding: 60px 20px; }
+    .loader {
+      width: 44px; height: 44px; border: 3px solid var(--border);
+      border-top-color: var(--accent); border-radius: 50%;
+      animation: spin .8s linear infinite; margin: 0 auto 16px;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .loader-text { color: var(--muted); font-size: 14px; }
+
+    /* ── Analysis Page ── */
+    .analysis-header {
+      background: linear-gradient(135deg, var(--surface), var(--surface2));
+      border: 1px solid var(--border); border-radius: var(--radius);
+      padding: 20px; margin-bottom: 16px; text-align: center;
+    }
+    .analysis-emoji { font-size: 48px; margin-bottom: 8px; }
+    .analysis-title { font-size: 20px; font-weight: 800; margin-bottom: 12px; }
+    .overall-score {
+      display: inline-flex; align-items: center; gap: 8px;
+      background: var(--surface2); border-radius: 12px; padding: 10px 20px;
+    }
+    .score-big { font-size: 36px; font-weight: 800; }
+    .score-label { font-size: 12px; color: var(--muted); text-align: left; line-height: 1.3; }
+    .reco-badge {
+      display: inline-block; padding: 6px 16px; border-radius: 20px;
+      font-size: 14px; font-weight: 700; margin-top: 12px;
+    }
+    .reco-kaufen { background: rgba(34,197,94,.2); color: var(--success); border: 1px solid rgba(34,197,94,.3); }
+    .reco-pruefen { background: rgba(245,158,11,.2); color: var(--warning); border: 1px solid rgba(245,158,11,.3); }
+    .reco-meiden { background: rgba(239,68,68,.2); color: var(--danger); border: 1px solid rgba(239,68,68,.3); }
+
+    .metric-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 12px; }
+    .metric-card {
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: var(--radius); padding: 14px;
+    }
+    .metric-icon { font-size: 22px; margin-bottom: 6px; }
+    .metric-label { font-size: 11px; color: var(--muted); font-weight: 500; margin-bottom: 4px; text-transform: uppercase; letter-spacing: .04em; }
+    .metric-value { font-size: 16px; font-weight: 700; }
+    .metric-sub { font-size: 11px; color: var(--muted); margin-top: 2px; }
+
+    .score-bar-wrap { margin: 8px 0 4px; background: var(--surface2); border-radius: 4px; height: 6px; }
+    .score-bar { height: 100%; border-radius: 4px; }
+    .bar-blue { background: linear-gradient(90deg, var(--accent), var(--accent2)); }
+    .bar-green { background: var(--success); }
+    .bar-yellow { background: var(--warning); }
+    .bar-red { background: var(--danger); }
+
+    .list-item { display: flex; align-items: flex-start; gap: 8px; margin-bottom: 8px; font-size: 14px; line-height: 1.4; }
+    .list-dot { width: 6px; height: 6px; border-radius: 50%; flex-shrink: 0; margin-top: 6px; }
+
+    .platform-wrap { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+
+    /* ── Radar Chart ── */
+    .chart-wrap { position: relative; max-width: 280px; margin: 0 auto; }
+
+    /* ── Compare Page ── */
+    .supplier-card {
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: var(--radius); padding: 16px; margin-bottom: 10px;
+      position: relative; overflow: hidden;
+    }
+    .supplier-card.recommended { border-color: var(--accent); }
+    .supplier-card.recommended::before {
+      content: '★ Empfohlen'; position: absolute; top: 10px; right: 10px;
+      background: var(--accent); color: #fff; font-size: 10px; font-weight: 700;
+      padding: 3px 8px; border-radius: 6px;
+    }
+    .supplier-name { font-size: 16px; font-weight: 700; margin-bottom: 6px; }
+    .supplier-url { font-size: 11px; color: var(--muted); margin-bottom: 10px; }
+    .supplier-stats { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 10px; }
+    .stat-item { background: var(--surface2); border-radius: 8px; padding: 8px 10px; }
+    .stat-label { font-size: 10px; color: var(--muted); text-transform: uppercase; letter-spacing: .04em; }
+    .stat-value { font-size: 14px; font-weight: 600; margin-top: 2px; }
+    .star-row { display: flex; gap: 2px; margin-top: 4px; }
+    .star { font-size: 12px; }
+    .star-filled { color: var(--warning); }
+    .star-empty { color: var(--border); }
+
+    /* ── Empty / Error States ── */
+    .empty-state { text-align: center; padding: 60px 20px; color: var(--muted); }
+    .empty-state .icon { font-size: 48px; margin-bottom: 12px; }
+    .empty-state h3 { font-size: 16px; font-weight: 600; margin-bottom: 6px; color: var(--text); }
+    .empty-state p { font-size: 14px; }
+
+    .error-box {
+      background: rgba(239,68,68,.1); border: 1px solid rgba(239,68,68,.3);
+      border-radius: var(--radius); padding: 14px 16px; color: var(--danger);
+      font-size: 14px; margin-bottom: 12px;
+    }
+
+    /* ── Divider ── */
+    .divider { border: none; border-top: 1px solid var(--border); margin: 16px 0; }
+
+    /* ── Util ── */
+    .text-muted { color: var(--muted); }
+    .text-success { color: var(--success); }
+    .text-warning { color: var(--warning); }
+    .text-danger { color: var(--danger); }
+    .text-accent { color: var(--accent); }
+    .flex-between { display: flex; justify-content: space-between; align-items: center; }
+    .fw-600 { font-weight: 600; }
+    .fw-700 { font-weight: 700; }
+    .fs-14 { font-size: 14px; }
+    .fs-13 { font-size: 13px; }
+    .mt-4 { margin-top: 16px; }
+    .mb-1 { margin-bottom: 4px; }
+    .mb-2 { margin-bottom: 8px; }
+  </style>
+</head>
+<body>
+<div id="app">
+
+  <!-- Header -->
+  <div id="header">
+    <div class="logo">🔍</div>
+    <div class="header-text">
+      <h1>DropFind</h1>
+      <p>Dropshipping Produktfinder</p>
+    </div>
+  </div>
+
+  <!-- Main Content -->
+  <div id="content">
+
+    <!-- PAGE: Trending -->
+    <div id="page-trending" class="page active">
+      <div class="section-title">🔥 Top Kategorien</div>
+      <div id="category-scroll" class="category-scroll">
+        <button class="cat-btn active" data-cat="Alle">Alle</button>
+      </div>
+      <div class="section-title">📈 Trending Produkte 2026</div>
+      <div id="product-grid" class="product-grid">
+        <div class="loader-wrap"><div class="loader"></div></div>
+      </div>
+    </div>
+
+    <!-- PAGE: Search -->
+    <div id="page-search" class="page">
+      <div class="search-hero">
+        <h2>Produkt suchen</h2>
+        <p>Gib ein Produkt ein und erhalte eine<br>detaillierte Dropshipping-Analyse</p>
+      </div>
+
+      <div class="input-wrap search-box">
+        <input id="search-input" class="input" type="text" placeholder="z.B. Elektrische Zahnbürste..." autocomplete="off" autocorrect="off" />
+        <button class="search-submit" id="search-btn" onclick="startSearch()">
+          <svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/></svg>
+        </button>
+      </div>
+      <div class="input-wrap">
+        <select id="search-cat" class="input">
+          <option value="">Alle Kategorien</option>
+          <option>Smart Home</option><option>Elektronik</option><option>Haustier</option>
+          <option>Beauty</option><option>Sport</option><option>Küche</option>
+          <option>Büro</option><option>Health</option><option>Lifestyle</option>
+          <option>Spielzeug</option><option>Mode</option>
+        </select>
+      </div>
+
+      <div id="search-result"></div>
+
+      <div class="section-title mt-4">⚡ Schnellsuche</div>
+      <div style="display:flex;flex-wrap:wrap;gap:8px">
+        <button class="btn btn-outline" style="font-size:13px;padding:8px 12px" onclick="quickSearch('Handyhülle')">📱 Handyhülle</button>
+        <button class="btn btn-outline" style="font-size:13px;padding:8px 12px" onclick="quickSearch('Yoga Matte')">🧘 Yoga Matte</button>
+        <button class="btn btn-outline" style="font-size:13px;padding:8px 12px" onclick="quickSearch('LED Schreibtischlampe')">💡 LED Lampe</button>
+        <button class="btn btn-outline" style="font-size:13px;padding:8px 12px" onclick="quickSearch('Bluetooth Lautsprecher')">🔊 BT Speaker</button>
+        <button class="btn btn-outline" style="font-size:13px;padding:8px 12px" onclick="quickSearch('Reiseadapter')">✈️ Reiseadapter</button>
+        <button class="btn btn-outline" style="font-size:13px;padding:8px 12px" onclick="quickSearch('Elektrische Wimpernzange')">👁️ Wimpernzange</button>
+      </div>
+    </div>
+
+    <!-- PAGE: Analysis -->
+    <div id="page-analysis" class="page">
+      <div id="analysis-content">
+        <div class="empty-state">
+          <div class="icon">📊</div>
+          <h3>Noch keine Analyse</h3>
+          <p>Wähle ein Produkt aus dem Trending-Tab oder nutze die Suche</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- PAGE: Compare -->
+    <div id="page-compare" class="page">
+      <div id="compare-content">
+        <div class="empty-state">
+          <div class="icon">🛒</div>
+          <h3>Lieferanten-Vergleich</h3>
+          <p>Analysiere zuerst ein Produkt und starte dann den Lieferantenvergleich</p>
+        </div>
+      </div>
+    </div>
+
+  </div><!-- /content -->
+
+  <!-- Bottom Navigation -->
+  <div id="nav">
+    <button class="nav-btn active" onclick="showPage('trending',this)">
+      <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M3 3v18h18"/><path d="M18.7 8l-5.1 5.2-2.8-2.7L7 14.3"/></svg>
+      <span class="nav-label">Trending</span>
+    </button>
+    <button class="nav-btn" onclick="showPage('search',this)">
+      <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/></svg>
+      <span class="nav-label">Suche</span>
+    </button>
+    <button class="nav-btn" onclick="showPage('analysis',this)">
+      <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><rect x="2" y="3" width="20" height="14" rx="2"/><path d="M8 21h8M12 17v4"/><path d="M7 8l3 3 2-2 3 3"/></svg>
+      <span class="nav-label">Analyse</span>
+    </button>
+    <button class="nav-btn" onclick="showPage('compare',this)">
+      <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M6 2L3 6v14a2 2 0 002 2h14a2 2 0 002-2V6l-3-4z"/><line x1="3" y1="6" x2="21" y2="6"/><path d="M16 10a4 4 0 01-8 0"/></svg>
+      <span class="nav-label">Vergleich</span>
+    </button>
+  </div>
+
+</div><!-- /app -->
+
+<script>
+// ────────────────────────────────────────────────────────────────────────────
+// State
+// ────────────────────────────────────────────────────────────────────────────
+let allProducts = [];
+let currentProduct = null;
+let radarChart = null;
+
+// ────────────────────────────────────────────────────────────────────────────
+// Navigation
+// ────────────────────────────────────────────────────────────────────────────
+function showPage(name, btn) {
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
+  document.getElementById('page-' + name).classList.add('active');
+  if (btn) btn.classList.add('active');
+  document.getElementById('content').scrollTop = 0;
+}
+
+function goToAnalysis(productName) {
+  currentProduct = productName;
+  showPage('analysis', document.querySelectorAll('.nav-btn')[2]);
+  loadAnalysis(productName);
+}
+
+function goToCompare(productName) {
+  currentProduct = productName;
+  showPage('compare', document.querySelectorAll('.nav-btn')[3]);
+  loadCompare(productName);
+}
+
+// ────────────────────────────────────────────────────────────────────────────
+// Trending Products
+// ────────────────────────────────────────────────────────────────────────────
+async function loadTrending() {
+  try {
+    const res = await fetch('/api/trending');
+    const data = await res.json();
+    allProducts = data.products;
+
+    // Build category filter
+    const catScroll = document.getElementById('category-scroll');
+    const cats = ['Alle', ...new Set(allProducts.map(p => p.category))];
+    catScroll.innerHTML = cats.map(c =>
+      `<button class="cat-btn ${c==='Alle'?'active':''}" data-cat="${c}" onclick="filterCat('${c}',this)">${c}</button>`
+    ).join('');
+
+    renderProductGrid(allProducts);
+  } catch (e) {
+    document.getElementById('product-grid').innerHTML = `<div style="grid-column:1/-1"><div class="error-box">Fehler beim Laden: ${e.message}</div></div>`;
+  }
+}
+
+function filterCat(cat, btn) {
+  document.querySelectorAll('.cat-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  const filtered = cat === 'Alle' ? allProducts : allProducts.filter(p => p.category === cat);
+  renderProductGrid(filtered);
+}
+
+function renderProductGrid(products) {
+  const grid = document.getElementById('product-grid');
+  if (!products.length) { grid.innerHTML = '<div style="grid-column:1/-1" class="empty-state"><div class="icon">🔍</div><p>Keine Produkte gefunden</p></div>'; return; }
+  grid.innerHTML = products.map(p => {
+    const dirClass = p.direction === 'up' ? 'trend-up' : p.direction === 'stable' ? 'trend-stable' : 'trend-down';
+    const dirIcon  = p.direction === 'up' ? '↑' : p.direction === 'stable' ? '→' : '↓';
+    const tags = (p.tags||[]).map(t => `<span class="tag tag-blue">${t}</span>`).join(' ');
+    return `<div class="product-card" onclick="goToAnalysis('${p.name.replace(/'/g,"\\'")}')">
+      <div class="product-emoji">${p.emoji}</div>
+      <div class="product-name">${p.name}</div>
+      <div class="product-price">${p.price_range}</div>
+      <div class="trend-bar-wrap"><div class="trend-bar" style="width:${p.trend_score}%"></div></div>
+      <div class="flex-between mt" style="margin-top:4px">
+        <span class="trend-score">${p.trend_score}/100</span>
+        <span class="trend-direction ${dirClass}">${dirIcon} ${p.direction === 'up' ? 'Steigend' : p.direction === 'stable' ? 'Stabil' : 'Fallend'}</span>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+// ────────────────────────────────────────────────────────────────────────────
+// Search
+// ────────────────────────────────────────────────────────────────────────────
+function quickSearch(name) {
+  document.getElementById('search-input').value = name;
+  showPage('search', document.querySelectorAll('.nav-btn')[1]);
+  startSearch();
+}
+
+async function startSearch() {
+  const name = document.getElementById('search-input').value.trim();
+  if (!name) return;
+  showPage('search', document.querySelectorAll('.nav-btn')[1]);
+
+  const resultEl = document.getElementById('search-result');
+  resultEl.innerHTML = `<div class="loader-wrap"><div class="loader"></div><div class="loader-text">Analysiere "${name}"…</div></div>`;
+
+  try {
+    const res = await fetch('/api/analyze', {
+      method: 'POST', headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({ product_name: name })
+    });
+    if (!res.ok) throw new Error((await res.json()).detail || res.statusText);
+    const data = await res.json();
+    resultEl.innerHTML = buildQuickResult(data);
+  } catch (e) {
+    resultEl.innerHTML = `<div class="error-box">⚠️ Fehler: ${e.message}</div>`;
+  }
+}
+
+function buildQuickResult(data) {
+  const recoClass = data.recommendation === 'KAUFEN' ? 'reco-kaufen' : data.recommendation === 'PRÜFEN' ? 'reco-pruefen' : 'reco-meiden';
+  const scoreColor = data.overall_score >= 7 ? 'var(--success)' : data.overall_score >= 5 ? 'var(--warning)' : 'var(--danger)';
+  return `<div class="card" style="margin-top:16px">
+    <div class="flex-between mb-2">
+      <div class="fw-700" style="font-size:16px">${data.product_name}</div>
+      <span class="reco-badge ${recoClass}">${data.recommendation}</span>
+    </div>
+    <div style="font-size:28px;font-weight:800;color:${scoreColor}">${data.overall_score.toFixed(1)}<span style="font-size:14px;color:var(--muted)">/10</span></div>
+    <div style="font-size:13px;color:var(--muted);margin:8px 0 12px">${data.recommendation_text}</div>
+    <div class="flex-between" style="gap:8px">
+      <button class="btn btn-primary" style="flex:1;font-size:13px" onclick="goToAnalysis('${data.product_name.replace(/'/g,"\\'")}')">
+        📊 Vollanalyse
+      </button>
+      <button class="btn btn-outline" style="flex:1;font-size:13px" onclick="goToCompare('${data.product_name.replace(/'/g,"\\'")}')">
+        🛒 Lieferanten
+      </button>
+    </div>
+  </div>`;
+}
+
+// ────────────────────────────────────────────────────────────────────────────
+// Full Analysis
+// ────────────────────────────────────────────────────────────────────────────
+async function loadAnalysis(productName) {
+  const el = document.getElementById('analysis-content');
+  el.innerHTML = `<div class="loader-wrap"><div class="loader"></div><div class="loader-text">KI analysiert "${productName}"…<br><span style="font-size:12px">Das dauert etwa 10–20 Sekunden</span></div></div>`;
+
+  if (radarChart) { radarChart.destroy(); radarChart = null; }
+
+  try {
+    const res = await fetch('/api/analyze', {
+      method: 'POST', headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({ product_name: productName })
+    });
+    if (!res.ok) throw new Error((await res.json()).detail || res.statusText);
+    const d = await res.json();
+    el.innerHTML = buildAnalysisHTML(d);
+    renderRadarChart(d);
+  } catch (e) {
+    el.innerHTML = `<div class="error-box">⚠️ Fehler: ${e.message}</div>`;
+  }
+}
+
+function buildAnalysisHTML(d) {
+  const recoClass = d.recommendation === 'KAUFEN' ? 'reco-kaufen' : d.recommendation === 'PRÜFEN' ? 'reco-pruefen' : 'reco-meiden';
+  const scoreColor = d.overall_score >= 7 ? 'var(--success)' : d.overall_score >= 5 ? 'var(--warning)' : 'var(--danger)';
+  const scoreBarColor = d.overall_score >= 7 ? 'bar-green' : d.overall_score >= 5 ? 'bar-yellow' : 'bar-red';
+
+  const platforms = (d.best_platforms||[]).map(p => `<span class="tag tag-purple">${p}</span>`).join('');
+  const advantages = (d.advantages||[]).map(a => `<div class="list-item"><span class="list-dot" style="background:var(--success)"></span>${a}</div>`).join('');
+  const risks = (d.risks||[]).map(r => `<div class="list-item"><span class="list-dot" style="background:var(--danger)"></span>${r}</div>`).join('');
+  const tips = (d.marketing_tips||[]).map(t => `<div class="list-item"><span class="list-dot" style="background:var(--accent)"></span>${t}</div>`).join('');
+
+  const demandBarColor = d.market_demand?.score >= 7 ? 'bar-green' : d.market_demand?.score >= 5 ? 'bar-yellow' : 'bar-red';
+  const compScore = d.competition?.score || 5;
+  const compBarColor = compScore >= 7 ? 'bar-green' : compScore >= 5 ? 'bar-yellow' : 'bar-red';
+  const profitBarColor = d.profitability?.score >= 7 ? 'bar-green' : d.profitability?.score >= 5 ? 'bar-yellow' : 'bar-red';
+
+  const directionIcon = d.trend?.direction?.includes('Stark') ? '🚀' : d.trend?.direction?.includes('Steig') ? '📈' : d.trend?.direction?.includes('Fall') ? '📉' : '📊';
+
+  return `
+    <!-- Header Card -->
+    <div class="analysis-header">
+      <div class="analysis-emoji">🔎</div>
+      <div class="analysis-title">${d.product_name}</div>
+      <div class="overall-score">
+        <span class="score-big" style="color:${scoreColor}">${d.overall_score.toFixed(1)}</span>
+        <div class="score-label">von 10<br>Gesamt-Score</div>
+      </div>
+      <div style="margin-top:8px"><span class="reco-badge ${recoClass}">Empfehlung: ${d.recommendation}</span></div>
+      <div style="font-size:13px;color:var(--muted);margin-top:10px;line-height:1.5">${d.recommendation_text}</div>
+    </div>
+
+    <!-- Radar Chart -->
+    <div class="card" style="margin-bottom:12px">
+      <div class="section-title">📡 Score-Übersicht</div>
+      <div class="chart-wrap"><canvas id="radarCanvas"></canvas></div>
+    </div>
+
+    <!-- Key Metrics Grid -->
+    <div class="metric-grid">
+      <div class="metric-card">
+        <div class="metric-icon">📊</div>
+        <div class="metric-label">Nachfrage</div>
+        <div class="metric-value">${d.market_demand?.level || '–'}</div>
+        <div class="score-bar-wrap"><div class="score-bar ${demandBarColor}" style="width:${(d.market_demand?.score||0)*10}%"></div></div>
+        <div class="metric-sub">${d.market_demand?.monthly_searches_estimate || ''}</div>
+      </div>
+      <div class="metric-card">
+        <div class="metric-icon">⚔️</div>
+        <div class="metric-label">Konkurrenz</div>
+        <div class="metric-value">${d.competition?.level || '–'}</div>
+        <div class="score-bar-wrap"><div class="score-bar ${compBarColor}" style="width:${compScore*10}%"></div></div>
+        <div class="metric-sub">Score: ${compScore}/10</div>
+      </div>
+      <div class="metric-card">
+        <div class="metric-icon">💰</div>
+        <div class="metric-label">Marge</div>
+        <div class="metric-value" style="color:var(--success)">${d.profitability?.margin_estimate || '–'}</div>
+        <div class="score-bar-wrap"><div class="score-bar ${profitBarColor}" style="width:${(d.profitability?.score||0)*10}%"></div></div>
+        <div class="metric-sub">EK: ${d.profitability?.purchase_price_estimate || '?'}</div>
+      </div>
+      <div class="metric-card">
+        <div class="metric-icon">${directionIcon}</div>
+        <div class="metric-label">Trend</div>
+        <div class="metric-value" style="font-size:13px">${d.trend?.direction || '–'}</div>
+        <div class="metric-sub">${d.trend?.seasonality || ''}</div>
+        <div class="metric-sub">${d.trend?.peak_months || ''}</div>
+      </div>
+    </div>
+
+    <!-- Profitability Detail -->
+    <div class="card">
+      <div class="section-title">💰 Preiskalkulation</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;text-align:center">
+        <div style="background:var(--surface2);border-radius:10px;padding:10px">
+          <div style="font-size:10px;color:var(--muted);text-transform:uppercase">Einkauf</div>
+          <div style="font-size:16px;font-weight:700;color:var(--danger);margin-top:4px">${d.profitability?.purchase_price_estimate || '?'}</div>
+        </div>
+        <div style="background:var(--surface2);border-radius:10px;padding:10px">
+          <div style="font-size:10px;color:var(--muted);text-transform:uppercase">Verkauf</div>
+          <div style="font-size:16px;font-weight:700;color:var(--accent);margin-top:4px">${d.profitability?.selling_price_estimate || '?'}</div>
+        </div>
+        <div style="background:var(--surface2);border-radius:10px;padding:10px">
+          <div style="font-size:10px;color:var(--muted);text-transform:uppercase">Marge</div>
+          <div style="font-size:16px;font-weight:700;color:var(--success);margin-top:4px">${d.profitability?.margin_estimate || '?'}</div>
+        </div>
+      </div>
+      <div style="font-size:13px;color:var(--muted);margin-top:10px">${d.profitability?.description || ''}</div>
+    </div>
+
+    <!-- Target & Platforms -->
+    <div class="card">
+      <div class="section-title">🎯 Zielgruppe & Plattformen</div>
+      <div style="font-size:14px;margin-bottom:10px">${d.target_audience || '–'}</div>
+      <div class="platform-wrap">${platforms}</div>
+    </div>
+
+    <!-- Advantages & Risks -->
+    <div class="card">
+      <div class="section-title">✅ Vorteile</div>
+      ${advantages}
+    </div>
+    <div class="card">
+      <div class="section-title">⚠️ Risiken</div>
+      ${risks}
+    </div>
+
+    <!-- Marketing Tips -->
+    ${tips ? `<div class="card"><div class="section-title">💡 Marketing-Tipps</div>${tips}</div>` : ''}
+
+    <!-- Legal -->
+    ${d.legal_notes ? `<div class="card" style="border-color:rgba(245,158,11,.3)"><div class="section-title" style="color:var(--warning)">⚖️ Rechtliche Hinweise</div><div style="font-size:13px">${d.legal_notes}</div></div>` : ''}
+
+    <!-- Market Demand & Competition Descriptions -->
+    <div class="card">
+      <div class="section-title">📈 Marktanalyse Details</div>
+      <div class="fw-600 mb-1" style="font-size:13px">Nachfrage</div>
+      <div style="font-size:13px;color:var(--muted);margin-bottom:12px">${d.market_demand?.description || ''}</div>
+      <div class="fw-600 mb-1" style="font-size:13px">Konkurrenz</div>
+      <div style="font-size:13px;color:var(--muted);margin-bottom:12px">${d.competition?.description || ''}</div>
+      ${d.competition?.main_competitors?.length ? `<div style="display:flex;flex-wrap:wrap;gap:6px">${d.competition.main_competitors.map(c => `<span class="tag tag-yellow">${c}</span>`).join('')}</div>` : ''}
+    </div>
+
+    <!-- CTA -->
+    <div class="card" style="text-align:center">
+      <div style="font-size:14px;color:var(--muted);margin-bottom:12px">Lieferanten vergleichen und beste Einkaufsquelle finden</div>
+      <button class="btn btn-primary btn-full" onclick="goToCompare('${d.product_name.replace(/'/g,"\\'")}')">
+        🛒 Lieferanten vergleichen
+      </button>
+    </div>
+  `;
+}
+
+function renderRadarChart(d) {
+  const canvas = document.getElementById('radarCanvas');
+  if (!canvas) return;
+  if (radarChart) { radarChart.destroy(); }
+
+  const scores = [
+    d.market_demand?.score || 0,
+    d.competition?.score || 0,
+    d.profitability?.score || 0,
+    d.overall_score || 0,
+    Math.min(10, (d.trend?.direction?.includes('Stark') ? 10 : d.trend?.direction?.includes('Steig') ? 7 : d.trend?.direction?.includes('Fall') ? 3 : 5)),
+  ];
+
+  radarChart = new Chart(canvas, {
+    type: 'radar',
+    data: {
+      labels: ['Nachfrage', 'Konkurrenz', 'Profitabilität', 'Gesamt', 'Trend'],
+      datasets: [{
+        data: scores,
+        borderColor: '#0EA5E9',
+        backgroundColor: 'rgba(14,165,233,0.15)',
+        borderWidth: 2,
+        pointBackgroundColor: '#0EA5E9',
+        pointRadius: 4,
+      }]
+    },
+    options: {
+      responsive: true,
+      scales: {
+        r: {
+          min: 0, max: 10,
+          ticks: { color: '#94A3B8', stepSize: 2, font: { size: 10 } },
+          grid: { color: '#334155' },
+          pointLabels: { color: '#94A3B8', font: { size: 11 } },
+          angleLines: { color: '#334155' }
+        }
+      },
+      plugins: { legend: { display: false } }
+    }
+  });
+}
+
+// ────────────────────────────────────────────────────────────────────────────
+// Supplier Comparison
+// ────────────────────────────────────────────────────────────────────────────
+async function loadCompare(productName) {
+  const el = document.getElementById('compare-content');
+  el.innerHTML = `<div class="loader-wrap"><div class="loader"></div><div class="loader-text">Vergleiche Lieferanten für "${productName}"…<br><span style="font-size:12px">Das dauert etwa 10–20 Sekunden</span></div></div>`;
+
+  try {
+    const res = await fetch('/api/compare', {
+      method: 'POST', headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({ product_name: productName })
+    });
+    if (!res.ok) throw new Error((await res.json()).detail || res.statusText);
+    const d = await res.json();
+    el.innerHTML = buildCompareHTML(d);
+  } catch (e) {
+    el.innerHTML = `<div class="error-box">⚠️ Fehler: ${e.message}</div>`;
+  }
+}
+
+function buildCompareHTML(d) {
+  const suppliers = (d.suppliers || []).map(s => {
+    const stars = (n) => Array.from({length:5}, (_,i) =>
+      `<span class="star ${i < n ? 'star-filled' : 'star-empty'}">${i < n ? '★' : '★'}</span>`
+    ).join('');
+    const pros = (s.pros||[]).map(p => `<div class="list-item"><span class="list-dot" style="background:var(--success)"></span>${p}</div>`).join('');
+    const cons = (s.cons||[]).map(c => `<div class="list-item"><span class="list-dot" style="background:var(--danger)"></span>${c}</div>`).join('');
+    return `
+      <div class="supplier-card ${s.recommended ? 'recommended' : ''}">
+        <div class="supplier-name">${s.name}</div>
+        <div class="supplier-url text-muted">${s.url_hint}</div>
+        <div class="supplier-stats">
+          <div class="stat-item">
+            <div class="stat-label">Preisspanne</div>
+            <div class="stat-value text-accent">${s.price_range}</div>
+          </div>
+          <div class="stat-item">
+            <div class="stat-label">Lieferzeit DE</div>
+            <div class="stat-value">${s.shipping_time_de}</div>
+          </div>
+          <div class="stat-item">
+            <div class="stat-label">Mindestbestellung</div>
+            <div class="stat-value">${s.min_order_qty} Stück</div>
+          </div>
+          <div class="stat-item">
+            <div class="stat-label">Qualität</div>
+            <div class="star-row">${stars(s.quality_rating)}</div>
+          </div>
+        </div>
+        <div style="font-size:12px;font-weight:600;color:var(--muted);margin-bottom:6px;text-transform:uppercase">Vorteile</div>
+        ${pros}
+        <div style="font-size:12px;font-weight:600;color:var(--muted);margin:8px 0 6px;text-transform:uppercase">Nachteile</div>
+        ${cons}
+      </div>
+    `;
+  }).join('');
+
+  const tips = (d.negotiation_tips||[]).map(t => `<div class="list-item"><span class="list-dot" style="background:var(--accent)"></span>${t}</div>`).join('');
+  const checks = (d.quality_checklist||[]).map(c => `<div class="list-item"><span class="list-dot" style="background:var(--warning)"></span>${c}</div>`).join('');
+
+  return `
+    <div class="analysis-header" style="margin-bottom:16px">
+      <div class="analysis-emoji">🛒</div>
+      <div class="analysis-title">${d.product_name}</div>
+      <div style="font-size:13px;color:var(--muted);margin-top:8px;line-height:1.5">${d.summary}</div>
+      ${d.best_choice ? `<div style="margin-top:10px"><span class="tag tag-green">⭐ Empfehlung: ${d.best_choice}</span></div>` : ''}
+    </div>
+
+    ${suppliers}
+
+    ${tips ? `<div class="card"><div class="section-title">🤝 Verhandlungstipps</div>${tips}</div>` : ''}
+    ${checks ? `<div class="card"><div class="section-title">✅ Qualitäts-Checkliste</div>${checks}</div>` : ''}
+
+    <div class="card" style="text-align:center">
+      <button class="btn btn-primary btn-full" onclick="goToAnalysis('${d.product_name.replace(/'/g,"\\'")}')">
+        📊 Zurück zur Analyse
+      </button>
+    </div>
+  `;
+}
+
+// ────────────────────────────────────────────────────────────────────────────
+// Enter key support
+// ────────────────────────────────────────────────────────────────────────────
+document.getElementById('search-input').addEventListener('keydown', e => {
+  if (e.key === 'Enter') startSearch();
+});
+
+// ────────────────────────────────────────────────────────────────────────────
+// Init
+// ────────────────────────────────────────────────────────────────────────────
+loadTrending();
+</script>
+</body>
+</html>
